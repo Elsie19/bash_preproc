@@ -99,6 +99,5 @@ if [[ -n ${lines_with_directive_local[*]} ]]; then
 fi
 
 if [[ -z ${lines_with_directive_local[*]} ]] || [[ -z ${lines_with_directive_global[*]} ]]; then
-    echo ":: No preprocessor directives found!"
     exit 1
 fi
