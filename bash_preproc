@@ -50,8 +50,10 @@ if [[ -n ${lines_with_directive_global[*]} ]]; then
             echo -e ":: Inserted \`${final_directives[directive]}\`"
         done
     fi
-else
+elif [[ -n ${lines_with_directive_local[*]} ]]; then
     # TODO: add support for local final_directives
+    true
+else
     echo ":: No preprocessor directives found!"
     exit 1
 fi
