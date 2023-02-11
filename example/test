@@ -1,9 +1,8 @@
 #!/bin/bash
 
 
-echo "foo"
+#include <potato.sh>
 
-echo "eggs"
-
+#include <eggs.sh>
 
 echo "Not a preproc"
