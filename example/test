@@ -1,9 +1,0 @@
-#!/bin/bash
-
-#include <potato.sh>
-
-#include <eggs.sh>
-
-#include "msg2.sh"
-
-echo "Not a preproc"

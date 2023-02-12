@@ -4,18 +4,20 @@ INPUT="${1}"
 
 shebang_regex='#!\/.+$'
 
-# Global
-lines_with_directive_global=($(grep -rn -E '#include <[a-zA-Z]+.sh|bash>$' "${INPUT}" | awk 'BEGIN { FS=":" } { print $1 }'))
-# Local to script
-lines_with_directive_local=($(grep -rn -E '#include \".+\.(sh|bash)\"$' "${INPUT}" | awk 'BEGIN { FS=":" } { print $1 }'))
+lines_with_directive=($(grep -rn -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}" | awk 'BEGIN { FS=":" } { print $1 }'))
 
-if [[ -n ${lines_with_directive_global[*]} ]]; then
-    for directive in "${lines_with_directive_global[@]}"; do
+if [[ -n ${lines_with_directive[*]} ]]; then
+    for directive in "${lines_with_directive[@]}"; do
         contents="$(awk "{if(NR=="$directive") print \$0}" "$INPUT")"
         # Removes `#include <` and `>`
+        if [[ ${contents: -1} == ">" ]]; then
+            directive_directory="/usr/include/bash"
+        else
+            directive_directory="$PWD"
+        fi
         contents="${contents:10:-1}"
-        if [[ ! -f "/usr/include/bash/$contents" ]]; then
-            echo "[$directive] :: Could not find bash file at \`/usr/include/bash/$contents\`"
+        if [[ ! -f "$directive_directory/$contents" ]]; then
+            echo "[$directive] :: Could not find bash file at \`$directive_directory/$contents\`"
             # Gotta fail out fast
             exit 1
         else
@@ -23,6 +25,8 @@ if [[ -n ${lines_with_directive_global[*]} ]]; then
             final_directives+=("$contents")
             # Line number
             final_directives_lines+=("$directive")
+            # Type of directive
+            final_directive_type+=("$directive_directory")
         fi
     done
     if [[ -n ${final_directives[*]} ]]; then
@@ -35,69 +39,31 @@ if [[ -n ${lines_with_directive_global[*]} ]]; then
             printf '%s\n' "${final_directives_lines[@]}" | tac | tr '\n' ' '
             echo
         ))
+        final_directive_type=($(
+            printf '%s\n' "${final_directive_type[@]}" | tac | tr '\n' ' '
+            echo
+        ))
+
+        directory_counter=0
         for directive in "${!final_directives[@]}"; do
             # Set line after in order to make sure the directive stays on the same line for removal
             directive_line="$((${final_directives_lines[directive]} + 1))"
             # Insert directive
-            sed -i -e "$directive_line { r /usr/include/bash/${final_directives[directive]}" -e "N; }" "${INPUT}"
+            sed -i "${final_directives_lines[directive]}G" "${INPUT}"
+            sed -i -e "$directive_line { r ${final_directive_type[$directory_counter]}/${final_directives[directive]}" -e "N; }" "${INPUT}"
             # Remove directive line
+            sed -i "${final_directives_lines[directive]}d" "${INPUT}"
             sed -i "${final_directives_lines[directive]}d" "${INPUT}"
             # Remove directive shebang if included
             if [[ "$(sed "${final_directives_lines[directive]}q;d" "${INPUT}")" =~ $shebang_regex ]]; then
                 sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-                sed -i "${final_directives_lines[directive]}d" "${INPUT}"
             fi
             echo -e ":: Inserted \`${final_directives[directive]}\`"
+            ((directory_counter++))
         done
     fi
 fi
 
-unset final_directives
-unset final_directives_lines
-
-if [[ -n ${lines_with_directive_local[*]} ]]; then
-    for directive in "${lines_with_directive_local[@]}"; do
-        contents="$(awk "{if(NR=="$directive") print \$0}" "$INPUT")"
-        # Removes `#include <` and `>`
-        contents="${contents:10:-1}"
-        if [[ ! -f "$PWD/$contents" ]]; then
-            echo "[$directive] :: Could not find bash file at \`$PWD/$contents\`"
-            # Gotta fail out fast
-            exit 1
-        else
-            # Directive name: `potato.sh`
-            final_directives+=("$contents")
-            # Line number
-            final_directives_lines+=("$directive")
-        fi
-    done
-    if [[ -n ${final_directives[*]} ]]; then
-        # Reverse so we can put in files without messing up line numbers
-        final_directives=($(
-            printf '%s\n' "${final_directives[@]}" | tac | tr '\n' ' '
-            echo
-        ))
-        final_directives_lines=($(
-            printf '%s\n' "${final_directives_lines[@]}" | tac | tr '\n' ' '
-            echo
-        ))
-        for directive in "${!final_directives[@]}"; do
-            # Set line after in order to make sure the directive stays on the same line for removal
-            directive_line="$((${final_directives_lines[directive]} + 1))"
-            # Insert directive
-            sed -i -e "$directive_line { r $PWD/${final_directives[directive]}" -e "N; }" "${INPUT}"
-            # Remove directive line
-            sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-            # Remove directive shebang if included
-            if [[ "$(sed "${final_directives_lines[directive]}q;d" "${INPUT}")" =~ $shebang_regex ]]; then
-                sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-                sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-            fi
-            echo -e ":: Inserted \`${final_directives[directive]}\`"
-        done
-    fi
-fi
-
-if [[ -z ${lines_with_directive_local[*]} ]] || [[ -z ${lines_with_directive_global[*]} ]]; then
+if [[ -z ${lines_with_directive[*]} ]]; then
     exit 1
 fi
