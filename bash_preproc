@@ -16,7 +16,11 @@ while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
             if [[ ${contents: -1} == ">" ]]; then
                 directive_directory="/usr/include/bash"
             else
-                directive_directory="$PWD"
+                if [[ -z ${BASH_PREPROC_LOCAL} ]]; then
+                    directive_directory="$(dirname $(readlink -f "${INPUT}"))"
+                else
+                    directive_directory="${BASH_PREPROC_LOCAL}"
+                fi
             fi
             contents="${contents:10:-1}"
             if [[ ! -f "$directive_directory/$contents" ]]; then
