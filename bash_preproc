@@ -3,7 +3,6 @@
 INPUT="${1:?Failed to give input file}"
 
 shebang_regex='#!\/.+$'
-has_recursed=false
 
 # Recurse
 while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
@@ -63,7 +62,6 @@ while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
                 fi
                 echo -e ":: Inserted \`${final_directives[directive]}\`"
             done
-            has_recursed=true
         fi
         unset final_directives final_directives_lines final_directive_type lines_with_directive
     else
@@ -71,8 +69,3 @@ while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
         exit 1
     fi
 done
-
-if [[ ${has_recursed} != "true" ]]; then
-    echo -e ":: No headers found!"
-    exit 1
-fi
