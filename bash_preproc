@@ -4,61 +4,64 @@ INPUT="${1:?Failed to give input file}"
 
 shebang_regex='#!\/.+$'
 
-lines_with_directive=($(grep -rn -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}" | awk 'BEGIN { FS=":" } { print $1 }'))
+# Recurse
+while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
+    lines_with_directive=($(grep -rn -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}" | awk 'BEGIN { FS=":" } { print $1 }'))
 
-if [[ -n ${lines_with_directive[*]} ]]; then
-    for directive in "${lines_with_directive[@]}"; do
-        contents="$(awk "{if(NR=="$directive") print \$0}" "$INPUT")"
-        # Removes `#include <` and `>`
-        if [[ ${contents: -1} == ">" ]]; then
-            directive_directory="/usr/include/bash"
-        else
-            directive_directory="$PWD"
-        fi
-        contents="${contents:10:-1}"
-        if [[ ! -f "$directive_directory/$contents" ]]; then
-            echo "[$directive] :: Could not find bash file at \`$directive_directory/$contents\`"
-            # Gotta fail out fast
-            exit 1
-        else
-            # Directive name: `potato.sh`
-            final_directives+=("$contents")
-            # Line number
-            final_directives_lines+=("$directive")
-            # Type of directive
-            final_directive_type+=("$directive_directory")
-        fi
-    done
-    if [[ -n ${final_directives[*]} ]]; then
-        # Reverse so we can put in files without messing up line numbers
-        final_directives=($(
-            printf '%s\n' "${final_directives[@]}" | tac | tr '\n' ' '
-            echo
-        ))
-        final_directives_lines=($(
-            printf '%s\n' "${final_directives_lines[@]}" | tac | tr '\n' ' '
-            echo
-        ))
-        final_directive_type=($(
-            printf '%s\n' "${final_directive_type[@]}" | tac | tr '\n' ' '
-            echo
-        ))
-
-        for directive in "${!final_directives[@]}"; do
-            # Set line after in order to make sure the directive stays on the same line for removal
-            # Insert directive
-            sed -i "${final_directives_lines[directive]}r ${final_directive_type[directive]}/${final_directives[directive]}" "${INPUT}"
-            # Remove directive line
-            sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-            # Remove directive shebang if included
-            if [[ "$(sed "${final_directives_lines[directive]}q;d" "${INPUT}")" =~ $shebang_regex ]]; then
-                sed -i "${final_directives_lines[directive]}d" "${INPUT}"
+    if [[ -n ${lines_with_directive[*]} ]]; then
+        for directive in "${lines_with_directive[@]}"; do
+            contents="$(awk "{if(NR=="$directive") print \$0}" "$INPUT")"
+            # Removes `#include <` and `>`
+            if [[ ${contents: -1} == ">" ]]; then
+                directive_directory="/usr/include/bash"
+            else
+                directive_directory="$PWD"
             fi
-            echo -e ":: Inserted \`${final_directives[directive]}\`"
+            contents="${contents:10:-1}"
+            if [[ ! -f "$directive_directory/$contents" ]]; then
+                echo "[$directive] :: Could not find bash file at \`$directive_directory/$contents\`"
+                # Gotta fail out fast
+                exit 1
+            else
+                # Directive name: `potato.sh`
+                final_directives+=("$contents")
+                # Line number
+                final_directives_lines+=("$directive")
+                # Type of directive
+                final_directive_type+=("$directive_directory")
+            fi
         done
-    fi
-fi
+        if [[ -n ${final_directives[*]} ]]; then
+            # Reverse so we can put in files without messing up line numbers
+            final_directives=($(
+                printf '%s\n' "${final_directives[@]}" | tac | tr '\n' ' '
+                echo
+            ))
+            final_directives_lines=($(
+                printf '%s\n' "${final_directives_lines[@]}" | tac | tr '\n' ' '
+                echo
+            ))
+            final_directive_type=($(
+                printf '%s\n' "${final_directive_type[@]}" | tac | tr '\n' ' '
+                echo
+            ))
 
-if [[ -z ${lines_with_directive[*]} ]]; then
-    exit 1
-fi
+            for directive in "${!final_directives[@]}"; do
+                # Set line after in order to make sure the directive stays on the same line for removal
+                # Insert directive
+                sed -i "${final_directives_lines[directive]}r ${final_directive_type[directive]}/${final_directives[directive]}" "${INPUT}"
+                # Remove directive line
+                sed -i "${final_directives_lines[directive]}d" "${INPUT}"
+                # Remove directive shebang if included
+                if [[ "$(sed "${final_directives_lines[directive]}q;d" "${INPUT}")" =~ $shebang_regex ]]; then
+                    sed -i "${final_directives_lines[directive]}d" "${INPUT}"
+                fi
+                echo -e ":: Inserted \`${final_directives[directive]}\`"
+            done
+        fi
+	unset final_directives final_directives_lines final_directive_type lines_with_directive
+    else
+        echo -e ":: No headers found!"
+        exit 1
+    fi
+done
