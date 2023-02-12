@@ -2,6 +2,11 @@
 
 INPUT="${1:?Failed to give input file}"
 
+if [[ ! -f "$(readlink -f "${INPUT}")" ]]; then
+    echo -e ":: $(readlink -f "${INPUT}") not found!" >&2
+    exit 1
+fi
+
 shebang_regex='#!\/.+$'
 
 # Recurse
@@ -23,7 +28,7 @@ while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
             fi
             contents="${contents:10:-1}"
             if [[ ! -f "$directive_directory/$contents" ]]; then
-                echo "[$directive] :: Could not find bash file at \`$directive_directory/$contents\`"
+                echo "[$directive] :: Could not find bash file at \`$directive_directory/$contents\`" >&2
                 # Gotta fail out fast
                 exit 1
             else
@@ -65,7 +70,7 @@ while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
         fi
         unset final_directives final_directives_lines final_directive_type lines_with_directive
     else
-        echo -e ":: No headers found!"
+        echo -e ":: No headers found!" >&2
         exit 1
     fi
 done
