@@ -46,12 +46,9 @@ if [[ -n ${lines_with_directive[*]} ]]; then
 
         for directive in "${!final_directives[@]}"; do
             # Set line after in order to make sure the directive stays on the same line for removal
-            directive_line="$((${final_directives_lines[directive]} + 1))"
             # Insert directive
-            sed -i "${final_directives_lines[directive]}G" "${INPUT}"
-            sed -i -e "$directive_line { r ${final_directive_type[directive]}/${final_directives[directive]}" -e "N; }" "${INPUT}"
+            sed -i "${final_directives_lines[directive]}r ${final_directive_type[directive]}/${final_directives[directive]}" "${INPUT}"
             # Remove directive line
-            sed -i "${final_directives_lines[directive]}d" "${INPUT}"
             sed -i "${final_directives_lines[directive]}d" "${INPUT}"
             # Remove directive shebang if included
             if [[ "$(sed "${final_directives_lines[directive]}q;d" "${INPUT}")" =~ $shebang_regex ]]; then
