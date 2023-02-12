@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-INPUT="${1}"
+INPUT="${1:?Failed to give input file}"
 
 shebang_regex='#!\/.+$'
 
