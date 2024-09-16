@@ -1,76 +1,33 @@
 #!/usr/bin/env bash
 
-INPUT="${1:?Failed to give input file}"
+ARGUMENTS=(
+    "--nostdinc" # No C/C++ stuff
+    "-I/usr/include/bash/"
+    "-x" # Enable #exec macro
+)
 
-if [[ ! -f "$(readlink -f "${INPUT}")" ]]; then
-    echo -e ":: $(readlink -f "${INPUT}") not found!" >&2
-    exit 1
+MODE=(
+    -n -U "" # Macro start
+          "" # Macro end without arguments
+          "{" # Argument start sequence
+          "\b" # Spaces (or tabs) instead of commas for separating arguments
+          "}" # Argument end sequence
+          "(" # List of chars to stack for argument balancing
+          ")" # List of characters to unstack
+          "$" # String to be used to refer to argument by number
+          "" # Quote character
+    -M "\n#\w" "\n" " " " " "\n" "" ""
+    +ccss "#\b" "\n" +ccii "\\\n" ""
+    +s '"' '"' '\' +s "'" "'" '\'
+)
+
+if ! command -v gpp &>/dev/null; then
+    echo >&2 ":: Could not find \`gpp\` command"
 fi
 
-shebang_regex='#!\/.+$'
-
-# Recurse
-while grep -rnq -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}"; do
-    lines_with_directive=($(grep -rn -E '#include (<|\").+.(sh|bash)(>|\")$' "${INPUT}" | awk 'BEGIN { FS=":" } { print $1 }'))
-
-    if [[ -n ${lines_with_directive[*]} ]]; then
-        for directive in "${lines_with_directive[@]}"; do
-            contents="$(awk "{if(NR=="$directive") print \$0}" "$INPUT")"
-            # Removes `#include <` and `>`
-            if [[ ${contents: -1} == ">" ]]; then
-                directive_directory="/usr/include/bash"
-            else
-                if [[ -z ${BASH_PREPROC_LOCAL} ]]; then
-                    directive_directory="$(dirname $(readlink -f "${INPUT}"))"
-                else
-                    directive_directory="${BASH_PREPROC_LOCAL}"
-                fi
-            fi
-            contents="${contents:10:-1}"
-            if [[ ! -f "$directive_directory/$contents" ]]; then
-                echo "[$directive] :: Could not find bash file at \`$directive_directory/$contents\`" >&2
-                # Gotta fail out fast
-                exit 1
-            else
-                # Directive name: `potato.sh`
-                final_directives+=("$contents")
-                # Line number
-                final_directives_lines+=("$directive")
-                # Type of directive
-                final_directive_type+=("$directive_directory")
-            fi
-        done
-        if [[ -n ${final_directives[*]} ]]; then
-            # Reverse so we can put in files without messing up line numbers
-            final_directives=($(
-                printf '%s\n' "${final_directives[@]}" | tac | tr '\n' ' '
-                echo
-            ))
-            final_directives_lines=($(
-                printf '%s\n' "${final_directives_lines[@]}" | tac | tr '\n' ' '
-                echo
-            ))
-            final_directive_type=($(
-                printf '%s\n' "${final_directive_type[@]}" | tac | tr '\n' ' '
-                echo
-            ))
-
-            for directive in "${!final_directives[@]}"; do
-                # Set line after in order to make sure the directive stays on the same line for removal
-                # Insert directive
-                sed -i "${final_directives_lines[directive]}r ${final_directive_type[directive]}/${final_directives[directive]}" "${INPUT}"
-                # Remove directive line
-                sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-                # Remove directive shebang if included
-                if [[ "$(sed "${final_directives_lines[directive]}q;d" "${INPUT}")" =~ $shebang_regex ]]; then
-                    sed -i "${final_directives_lines[directive]}d" "${INPUT}"
-                fi
-                echo -e ":: Inserted \`${final_directives[directive]}\`"
-            done
-        fi
-        unset final_directives final_directives_lines final_directive_type lines_with_directive
-    else
-        echo -e ":: No headers found!" >&2
-        exit 1
-    fi
-done
+if [[ "${1}" != "${2}" ]]; then
+    OUTFILE="${2}"
+else
+    OUTFILE="${1}"
+fi
+gpp "${ARGUMENTS[@]}" "${MODE[@]}" "$1" -o "$OUTFILE"
