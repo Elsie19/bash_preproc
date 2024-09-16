@@ -30,4 +30,4 @@ if [[ "${1}" != "${2}" ]]; then
 else
     OUTFILE="${1}"
 fi
-gpp "${ARGUMENTS[@]}" "${MODE[@]}" "$1" -o "$OUTFILE"
+gpp "${ARGUMENTS[@]}" "${MODE[@]}" "$1" -o "$OUTFILE" -D__CLAM_VERSION__="${3:-0.0.0}"
