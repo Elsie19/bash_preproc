@@ -25,9 +25,18 @@ if ! command -v gpp &>/dev/null; then
     echo >&2 ":: Could not find \`gpp\` command"
 fi
 
-if [[ "${1}" != "${2}" ]]; then
-    OUTFILE="${2}"
-else
-    OUTFILE="${1}"
+VERSION=0.0.0
+while getopts 'v:o:n:' OPTION; do case "${OPTION}" in
+        v) VERSION="${OPTARG}" ;;
+        n) INFILE="${OPTARG}" ;;
+        o) OUTFILE="${OPTARG}" ;;
+        ?) exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [[ "${1}" == "--" ]]; then
+    shift
 fi
-gpp "${ARGUMENTS[@]}" "${MODE[@]}" "$1" -o "$OUTFILE" -DCLAM_VERSION="${3:-0.0.0}" "${@}"
+
+gpp "${ARGUMENTS[@]}" "${@}" "${MODE[@]}" "$INFILE" -o "$OUTFILE" -DCLAM_VERSION="${VERSION}"
