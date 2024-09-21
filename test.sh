@@ -2,8 +2,6 @@
 
 #include <msg.sh>
 
-#define MULT{x y} $((x * $2))
+#define HELLO{NAME} echo hello NAME
 
-#comment
-
-echo MULT{5 6}
+HELLO{DBrox}
